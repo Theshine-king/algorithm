@@ -1,0 +1,146 @@
+Q1:
+给你一个正整数 n，表示一个 n x n 的城市，同时给定一个二维数组 buildings，其中 buildings[i] = [x, y] 表示位于坐标 [x, y] 的一个 唯一 建筑。
+
+如果一个建筑在四个方向（左、右、上、下）中每个方向上都至少存在一个建筑，则称该建筑 被覆盖 。
+
+返回 被覆盖 的建筑数量。
+
+用map记录x方向上存在的建筑和y方向上存在的建筑
+```cpp
+#include <vector>
+#include <unordered_map>
+#include <algorithm>
+using namespace std;
+class Solution {
+public:
+    int countCoveredBuildings(int n, vector<vector<int>>& bd) {
+        typedef pair<int, int> pii;
+        unordered_map<int, vector<pii>> x, y;
+        for (int i = 0; i < bd.size(); i++) {
+            x[bd[i][0]].push_back({bd[i][1], i});
+            y[bd[i][1]].push_back({bd[i][0], i});
+        }
+        vector<int> cnt;
+        for (auto& p : x) {
+            auto& it = p.second;
+            sort(it.begin(), it.end());
+            //下
+            for (int i = 1; i < it.size(); i++) {
+                cnt[it[i].second]++;
+            }
+            //上
+            for (int i = 0; i < it.size() - 1; i++) {
+                cnt[it[i].second]++;
+            }
+        }
+        for (auto& p : y) {
+            auto& it = p.second;
+            sort(it.begin(), it.end());
+            //左
+            for (int i = 1; i < it.size(); i++) {
+                cnt[it[i].second]++;
+            }
+            //右
+            for (int i = 0; i < it.size() - 1; i++) {
+                cnt[it[i].second]++;
+            }
+        }
+        int ans = 0;
+        for (auto& it : cnt) {
+            ans += it == 4;
+        }
+        return ans;
+    }
+
+//事实上我们只需记录最大和最小值即可
+public:
+    int countCoveredBuildings1(int n, vector<vector<int>>& bd) {
+        unordered_map<int, vector<int>> col, row;
+        for (auto& it : bd) {
+            col[it[0]].push_back(it[1]);
+            row[it[1]].push_back(it[0]);
+        }
+        for (auto& [_, a] : col) {
+            ranges::sort(a);
+        }
+        for (auto& [_, a] : row) {
+            ranges::sort(a);
+        }
+        int ans = 0;
+        auto f = [&](vector<int> a, int x) {
+            return a[0] < x && x < a.back();
+        };
+        for (auto& it : bd) {
+            int x = it[0], y = it[1];
+            ans += f(col[x], y) && f(row[y], x);
+        }
+        return ans;
+    }
+};
+```cpp
+
+Q2:
+给你一个整数 n，表示图中的节点数量，这些节点按从 0 到 n - 1 编号。
+
+同时给你一个长度为 n 的整数数组 nums，该数组按 非递减 顺序排序，以及一个整数 maxDiff。
+
+如果满足 |nums[i] - nums[j]| <= maxDiff（即 nums[i] 和 nums[j] 的 绝对差 至多为 maxDiff），则节点 i 和节点 j 之间存在一条 无向边 。
+
+此外，给你一个二维整数数组 queries。对于每个 queries[i] = [ui, vi]，需要判断节点 ui 和 vi 之间是否存在路径。
+
+返回一个布尔数组 answer，其中 answer[i] 等于 true 表示在第 i 个查询中节点 ui 和 vi 之间存在路径，否则为 false。
+
+解法(1): 并查集 合并达标的下标进行find即可
+```cpp
+#include <bits/stdc++.h>
+using namespace std;
+
+class Solution {
+    struct dsu {
+        vector<size_t> pa;
+        explicit dsu(size_t size) : pa(size) {iota(pa.begin(), pa.end(), 0);}
+
+        size_t dsu::find(size_t x) { return pa[x] == x ? x : pa[x] = find(pa[x]);}
+
+        void dsu::union_(size_t x, size_t y) {pa[find(x)] = find(y);}
+    };
+public:
+    vector<bool> pathExistenceQueries(int n, vector<int>& nums, int maxDiff, vector<vector<int>>& queries) {
+        int n = queries.size();
+        dsu d(n);
+        for (int i = 0; i < nums.size(); i++) {
+            int diff = abs(nums[i] - maxDiff);
+             for (int j = i + 1; j < n && diff <= maxDiff; j++) {
+                 d.dsu::union_(i, j);
+             }
+        }
+        vector<bool> ans(n, false);
+        for (int i = 0; i < queries.size(); i++) {
+            int a = queries[i][0], b = queries[i][1];
+            ans[i] = d.find(a) == d.find(b);
+        }
+        return ans;
+    }
+};
+```cpp
+解法(2):二分
+我们可以把数组想象成一段连续的区间，maxdiff则把数组分为了一个一个的小区间，如果两个小区间是联通的，则对于每个q[u, v] >= u 和 >= v的点是相同的
+```cpp
+class Solution {
+public:
+    vector<bool> pathExistenceQueries(int n, vector<int>& nums, int maxDiff, vector<vector<int>>& queries) {
+        vector<int> idx;
+        for(int i = 0; i < nums.size() - 1; i++) {
+            if(nums[i + 1] - nums[i] > maxDiff) {
+                idx.push_back(i);
+            }
+        }
+        vector<bool> ans (queries.size());
+        for(int i = 0; i < queries.size(); i++) {
+            auto& q = queries[i];
+            ans[i] = ranges::lower_bound(idx, q[0]) == ranges::lower_bound(idx, q[1]);
+        }
+        return ans;
+    }
+};
+```cpp
